@@ -1,0 +1,26 @@
+{
+  "name": "morning-winner",
+  "version": "1.0.0",
+  "description": "Discord朝活トラッキングBot - ボイスチャンネル参加状況をGoogle Sheetsで記録・可視化",
+  "main": "bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node --watch bot.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "tracking",
+    "google-sheets",
+    "morning-routine"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "googleapis": "^130.0.0",
+    "dayjs": "^1.11.10"
+  }
+}
