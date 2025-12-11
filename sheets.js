@@ -45,9 +45,9 @@ function getStatusFromJoinTime(joinTimeStr) {
 
   if (totalMinutes <= targetTime + 14) {
     return {
-      status: 'on-time',
-      emoji: '🌟',
-      label: 'オンタイム',
+      status: 'winner',
+      emoji: '🏆',
+      label: 'Winner',
       points: 10,
     };
   } else if (totalMinutes < veryLateTime) {

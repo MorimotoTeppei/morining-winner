@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝活チャレンジ - Morning Winner (プレビュー)</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 15px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+      animation: fadeIn 0.6s;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      opacity: 0.95;
+    }
+
+    .preview-badge {
+      background: #ff6b6b;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .mvp-banner {
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+      animation: slideUp 0.8s;
+    }
+
+    .mvp-banner h2 {
+      color: #333;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      margin-bottom: 10px;
+    }
+
+    .mvp-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      color: #333;
+      flex-wrap: wrap;
+    }
+
+    .player-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .player-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideUp 0.6s;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    .player-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .player-name {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 0.8rem;
+      background: #e9ecef;
+      color: #666;
+    }
+
+    .motivation-message {
+      background: linear-gradient(135deg, #667eea15, #764ba215);
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
+      color: #667eea;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .player-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .recent-stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      border-top: 1px solid #e9ecef;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .recent-stats > div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .recent-stats .value {
+      font-weight: bold;
+      color: #667eea;
+      font-size: 1rem;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .badge {
+      background: #f8f9fa;
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      border: 1px solid #e9ecef;
+    }
+
+    .heatmap-section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideUp 0.8s;
+    }
+
+    .heatmap-section h2 {
+      margin-bottom: 20px;
+      color: #333;
+      font-size: clamp(1.3rem, 3vw, 1.8rem);
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .player-heatmap {
+      margin-bottom: 25px;
+    }
+
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .heatmap-header strong {
+      font-size: 1.1rem;
+      color: #333;
+    }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(18px, 1fr));
+      gap: 3px;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .heatmap-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      min-width: 18px;
+      min-height: 18px;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.3);
+      z-index: 10;
+    }
+
+    .status-winner { background-color: #28a745; }
+    .status-late { background-color: #ffc107; }
+    .status-very-late { background-color: #fd7e14; }
+    .status-critical { background-color: #dc3545; }
+    .status-absent { background-color: #6c757d; opacity: 0.5; }
+    .status-missing { background-color: #e9ecef; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .legend-color {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .player-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .player-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .heatmap-grid {
+        grid-template-columns: repeat(auto-fill, minmax(14px, 1fr));
+        gap: 2px;
+      }
+
+      .heatmap-cell {
+        min-width: 14px;
+        min-height: 14px;
+      }
+
+      .legend {
+        gap: 10px;
+      }
+
+      .legend-item {
+        font-size: 0.75rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .heatmap-grid {
+        grid-template-columns: repeat(auto-fill, minmax(12px, 1fr));
+      }
+
+      .heatmap-cell {
+        min-width: 12px;
+        min-height: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌟 朝活チャレンジ</h1>
+      <p>毎日の積み重ねが力になる！自分のペースで頑張ろう💪</p>
+      <span class="preview-badge">📱 プレビューモード</span>
+    </div>
+
+    <div id="dashboard">
+      <!-- 今日のMVP -->
+      <div class="mvp-banner">
+        <h2>🏆 今日のMVP</h2>
+        <div class="mvp-info">
+          <span style="font-size: clamp(2rem, 5vw, 3rem);">🏆</span>
+          <div>
+            <div style="font-weight: bold; font-size: clamp(1.3rem, 3vw, 2rem);">佐藤</div>
+            <div style="font-size: clamp(0.9rem, 2vw, 1.2rem);">Winner - 10ポイント獲得！</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- プレイヤーカード -->
+      <div class="player-cards" id="playerCards"></div>
+
+      <!-- ヒートマップ -->
+      <div class="heatmap-section">
+        <h2>📅 個人別活動ヒートマップ（過去30日）</h2>
+        <div id="heatmapContainer"></div>
+
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-color status-winner"></div>
+            <span>🏆 Winner (7:14まで)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-late"></div>
+            <span>⚠️ 遅刻 (7:15-7:59)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-very-late"></div>
+            <span>🔥 大遅刻 (8:00-8:59)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-critical"></div>
+            <span>💀 危機感もてよ！ (9:00-)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-absent"></div>
+            <span>📝 欠席申請</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-missing"></div>
+            <span>❌ 不参加</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ダミーデータ生成
+    function generateDummyData() {
+      const users = [
+        {
+          userId: 'user1',
+          displayName: '佐藤',
+          totalPoints: 450,
+          level: 5,
+          streak: 8,
+          maxStreak: 15,
+          winnerRate: 85.0,
+          recentRate: 100.0,
+          totalDays: 20,
+          badges: ['🔥 5連勝', '⭐ 早起き王', '🥉 ブロンズ', '📈 成長中'],
+          miracleCount: 0,
+        },
+        {
+          userId: 'user2',
+          displayName: '田中',
+          totalPoints: 380,
+          level: 4,
+          streak: 3,
+          maxStreak: 20,
+          winnerRate: 70.5,
+          recentRate: 85.7,
+          totalDays: 22,
+          badges: ['💪 3連勝', '🥈 シルバー', '📈 成長中'],
+          miracleCount: 1,
+        },
+        {
+          userId: 'user3',
+          displayName: '鈴木',
+          totalPoints: 280,
+          level: 3,
+          streak: 2,
+          maxStreak: 12,
+          winnerRate: 55.0,
+          recentRate: 42.9,
+          totalDays: 18,
+          badges: ['🌱 2連勝', '🎊 カムバック', '🥉 ブロンズ'],
+          miracleCount: 0,
+        },
+        {
+          userId: 'user4',
+          displayName: '高橋',
+          totalPoints: 30,
+          level: 1,
+          streak: 2,
+          maxStreak: 2,
+          winnerRate: 66.7,
+          recentRate: 42.9,
+          totalDays: 3,
+          badges: ['🆕 チャレンジャー', '🌱 2連勝'],
+          miracleCount: 0,
+        },
+      ];
+
+      // ヒートマップデータ生成（30日分）
+      const heatmapData = {};
+      users.forEach(user => {
+        const days = [];
+        for (let i = 29; i >= 0; i--) {
+          let status;
+          if (user.userId === 'user1') {
+            // 佐藤：絶好調（ほぼwinner）
+            status = i < 8 ? 'winner' : (Math.random() > 0.2 ? 'winner' : 'late');
+          } else if (user.userId === 'user2') {
+            // 田中：最近頑張ってる
+            if (i < 7) status = Math.random() > 0.15 ? 'winner' : 'late';
+            else status = Math.random() > 0.5 ? 'winner' : (Math.random() > 0.5 ? 'late' : 'missing');
+          } else if (user.userId === 'user3') {
+            // 鈴木：カムバック（最近2日だけ復活）
+            if (i < 2) status = 'winner';
+            else if (i < 10) status = 'missing';
+            else status = Math.random() > 0.3 ? 'winner' : 'late';
+          } else {
+            // 高橋：新人（最後の3日だけ）
+            if (i < 3) status = Math.random() > 0.3 ? 'winner' : 'late';
+            else status = 'missing';
+          }
+
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          days.push({
+            date: date.toISOString().split('T')[0],
+            status: status,
+            points: status === 'winner' ? 10 : (status === 'late' ? 5 : 0),
+          });
+        }
+        heatmapData[user.userId] = {
+          displayName: user.displayName,
+          days: days,
+        };
+      });
+
+      return { ranking: users, heatmapData };
+    }
+
+    function getMotivationMessage(player) {
+      // ポジティブなメッセージを生成
+      if (player.streak >= 7) return '🔥 絶好調！この調子で続けよう！';
+      if (player.recentRate >= 85) return '📈 最近すごく頑張ってる！';
+      if (player.streak >= 3) return '💪 3日連続！いい感じ！';
+      if (player.badges.includes('🌱 2連勝')) return '🌱 2日連続達成！次は3日だ！';
+      if (player.badges.includes('🎊 カムバック')) return '🎊 おかえり！復活素晴らしい！';
+      if (player.badges.includes('🆕 チャレンジャー')) return '🆕 よくきた！これからが楽しみ！';
+      if (player.totalDays >= 10) return '✨ 10日以上参加！継続できてるよ！';
+      if (player.winnerRate >= 70) return '🏆 Winner率70%超え！すごい！';
+      if (player.recentRate >= 50) return '👍 最近の調子いいね！';
+      if (player.level >= 5) return '⭐ レベル' + player.level + '！着実に成長中！';
+      return '💫 自分のペースで頑張ろう！';
+    }
+
+    function displayStats(stats) {
+      // プレイヤーカード
+      const playerCards = document.getElementById('playerCards');
+      playerCards.innerHTML = '';
+
+      stats.ranking.forEach((player, index) => {
+        const rank = index + 1;
+        const motivationMsg = getMotivationMessage(player);
+        const badgesHTML = player.badges.map(b => `<span class="badge">${b}</span>`).join('');
+
+        const card = document.createElement('div');
+        card.className = 'player-card';
+        card.innerHTML = `
+          <div class="player-header">
+            <div class="player-name">
+              ${player.displayName}
+              ${player.miracleCount > 0 ? '🎉' : ''}
+            </div>
+            <span class="rank-badge">#${rank}</span>
+          </div>
+
+          <div class="motivation-message">${motivationMsg}</div>
+
+          <div class="player-stats">
+            <div class="stat-item">
+              <div class="stat-label">レベル</div>
+              <div class="stat-value">Lv.${player.level}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">ポイント</div>
+              <div class="stat-value">${player.totalPoints}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">ストリーク</div>
+              <div class="stat-value">${player.streak}🔥</div>
+            </div>
+          </div>
+
+          <div class="recent-stats">
+            <div>
+              <span class="label">Winner率</span>
+              <span class="value">${player.winnerRate}%</span>
+            </div>
+            <div>
+              <span class="label">最近7日</span>
+              <span class="value">${player.recentRate}%</span>
+            </div>
+            <div>
+              <span class="label">参加日数</span>
+              <span class="value">${player.totalDays}日</span>
+            </div>
+          </div>
+
+          ${badgesHTML ? `<div class="badges">${badgesHTML}</div>` : ''}
+        `;
+
+        playerCards.appendChild(card);
+      });
+
+      // ヒートマップ
+      displayHeatmap(stats.heatmapData, stats.ranking);
+    }
+
+    function displayHeatmap(heatmapData, ranking) {
+      const container = document.getElementById('heatmapContainer');
+      container.innerHTML = '';
+
+      // ランキング順に表示
+      ranking.forEach(player => {
+        const userData = heatmapData[player.userId];
+        if (!userData) return;
+
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'player-heatmap';
+
+        const currentStreak = player.streak || 0;
+        const recentRate = player.recentRate || 0;
+
+        playerDiv.innerHTML = `
+          <div class="heatmap-header">
+            <strong>${userData.displayName}</strong>
+            <div style="font-size: 0.9rem; color: #666;">
+              連続: ${currentStreak}日🔥 | 最近7日: ${recentRate}%
+            </div>
+          </div>
+          <div class="heatmap-grid" id="heatmap-${player.userId}"></div>
+        `;
+
+        container.appendChild(playerDiv);
+
+        const grid = document.getElementById(`heatmap-${player.userId}`);
+
+        userData.days.forEach(day => {
+          const cell = document.createElement('div');
+          cell.className = `heatmap-cell status-${day.status}`;
+          cell.title = `${day.date}: ${getStatusLabel(day.status)} (${day.points}pt)`;
+          grid.appendChild(cell);
+        });
+      });
+    }
+
+    function getStatusLabel(status) {
+      const labels = {
+        'winner': '🏆 Winner',
+        'late': '⚠️ 遅刻',
+        'very-late': '🔥 大遅刻',
+        'critical': '💀 危機感もてよ！',
+        'absent': '📝 欠席申請',
+        'missing': '❌ 不参加',
+      };
+      return labels[status] || status;
+    }
+
+    // ページロード時にダミーデータを表示
+    window.onload = function() {
+      const dummyData = generateDummyData();
+      displayStats(dummyData);
+    };
+  </script>
+</body>
+</html>

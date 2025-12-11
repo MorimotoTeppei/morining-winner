@@ -28,9 +28,9 @@ function getActivityData() {
     leaveTime: row[5],
     durationMinutes: row[6],
     joinHour: row[7],
-    status: row[8] || 'on-time',
-    emoji: row[9] || '🌟',
-    label: row[10] || 'オンタイム',
+    status: row[8] || 'winner',
+    emoji: row[9] || '🏆',
+    label: row[10] || 'Winner',
     points: row[11] || 10,
     wasAbsent: row[12] || false,
   }));
@@ -209,7 +209,7 @@ function calculateStreaks(data, absences) {
 
       maxStreak = Math.max(maxStreak, currentStreak);
 
-      if (record.status === 'on-time') {
+      if (record.status === 'winner') {
         onTimeStreak++;
         maxOnTimeStreak = Math.max(maxOnTimeStreak, onTimeStreak);
       } else {
@@ -232,18 +232,32 @@ function calculateStreaks(data, absences) {
 }
 
 // バッジを計算
-function calculateBadges(userRecords, streaks) {
+function calculateBadges(userRecords, streaks, recentRate) {
   const records = Object.values(userRecords);
+  const totalDays = records.length;
 
   const badges = {
-    '🏆 朝活マスター': streaks.maxOnTimeStreak >= 30,
-    '⭐ 早起き王': streaks.maxOnTimeStreak >= 7,
-    '🎯 完璧主義者': records.every(r => r.status === 'on-time'),
-    '🎉 奇跡の参加': records.some(r => r.wasAbsent),
+    // 継続バッジ（大きい達成）
     '💎 ダイヤモンド': streaks.maxStreak >= 100,
     '🥇 ゴールド': streaks.maxStreak >= 50,
     '🥈 シルバー': streaks.maxStreak >= 30,
     '🥉 ブロンズ': streaks.maxStreak >= 10,
+
+    // Winner連続バッジ
+    '🏆 朝活マスター': streaks.maxOnTimeStreak >= 30,
+    '⭐ 早起き王': streaks.maxOnTimeStreak >= 7,
+    '🎯 完璧主義者': records.every(r => r.status === 'winner'),
+
+    // 小さな達成もモチベーションアップ
+    '🔥 5連勝': streaks.currentStreak >= 5,
+    '💪 3連勝': streaks.currentStreak >= 3,
+    '🌱 2連勝': streaks.currentStreak >= 2,
+
+    // 特別バッジ
+    '🎉 奇跡の参加': records.some(r => r.wasAbsent),
+    '🆕 チャレンジャー': totalDays <= 3 && totalDays > 0,
+    '📈 成長中': recentRate >= 70 && totalDays >= 7,
+    '🎊 カムバック': streaks.currentStreak >= 2 && streaks.maxStreak > streaks.currentStreak + 5,
   };
 
   return Object.entries(badges)
@@ -285,12 +299,26 @@ function getGameStats() {
       userMap[userId].records[date] = record;
       userMap[userId].totalPoints += points || 0;
 
-      if (status === 'on-time') userMap[userId].onTimeCount++;
+      if (status === 'winner') userMap[userId].onTimeCount++;
       else if (status === 'late') userMap[userId].lateCount++;
       else if (status === 'very-late') userMap[userId].veryLateCount++;
       else if (status === 'critical') userMap[userId].criticalCount++;
 
       if (wasAbsent) userMap[userId].miracleCount++;
+    }
+  });
+
+  // 直近7日の参加率を計算
+  const recentDays = generateDateList(7);
+  const recentMap = {};
+  data.forEach(record => {
+    if (recentDays.includes(record.date)) {
+      if (!recentMap[record.userId]) {
+        recentMap[record.userId] = {};
+      }
+      if (!recentMap[record.userId][record.date]) {
+        recentMap[record.userId][record.date] = true;
+      }
     }
   });
 
@@ -306,12 +334,18 @@ function getGameStats() {
       currentOnTimeStreak: 0,
       maxOnTimeStreak: 0
     };
-    const badges = calculateBadges(user.records, streak);
+
+    // 直近7日の参加率を計算
+    const recentDaysCount = recentMap[user.userId] ? Object.keys(recentMap[user.userId]).length : 0;
+    const recentRate = (recentDaysCount / 7 * 100).toFixed(1);
+
+    const badges = calculateBadges(user.records, streak, parseFloat(recentRate));
 
     return {
       ...user,
       totalDays,
-      onTimeRate: totalDays > 0 ? ((user.onTimeCount / totalDays) * 100).toFixed(1) : 0,
+      winnerRate: totalDays > 0 ? ((user.onTimeCount / totalDays) * 100).toFixed(1) : 0,
+      recentRate,
       avgPoints: totalDays > 0 ? (user.totalPoints / totalDays).toFixed(1) : 0,
       streak: streak.currentStreak,
       maxStreak: streak.maxStreak,
@@ -399,7 +433,7 @@ function getUserDetail(userId) {
 
   // 統計情報
   const totalDays = records.length;
-  const onTimeCount = records.filter(r => r.status === 'on-time').length;
+  const winnerCount = records.filter(r => r.status === 'winner').length;
   const totalPoints = records.reduce((sum, r) => sum + (r.points || 0), 0);
 
   return {
@@ -407,8 +441,8 @@ function getUserDetail(userId) {
     displayName: records[0].displayName,
     timeData,
     totalDays,
-    onTimeCount,
-    onTimeRate: ((onTimeCount / totalDays) * 100).toFixed(1),
+    winnerCount,
+    winnerRate: ((winnerCount / totalDays) * 100).toFixed(1),
     totalPoints,
     level: Math.floor(totalPoints / 100) + 1,
     streak: userStreak.currentStreak,
@@ -416,70 +450,4 @@ function getUserDetail(userId) {
     onTimeStreak: userStreak.currentOnTimeStreak,
     maxOnTimeStreak: userStreak.maxOnTimeStreak,
   };
-}
-
-// ユーザーを追加（手動登録用）
-function addUser(userId, username, displayName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('Users');
-
-  // Usersシートがなければ作成
-  if (!sheet) {
-    const newSheet = ss.insertSheet('Users');
-    newSheet.appendRow(['ユーザーID', 'ユーザー名', '表示名', '登録日時']);
-  }
-
-  const usersSheet = ss.getSheetByName('Users');
-  const now = new Date().toISOString();
-
-  usersSheet.appendRow([userId, username, displayName, now]);
-
-  return { success: true, message: 'ユーザーを追加しました' };
-}
-
-// ユーザーを削除
-function deleteUser(userId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  // ActivityLogから削除
-  const activitySheet = ss.getSheetByName('ActivityLog');
-  if (activitySheet) {
-    const data = activitySheet.getDataRange().getValues();
-    const userIdCol = 1; // B列（0-indexed）
-
-    // 後ろから削除（行番号がずれないように）
-    for (let i = data.length - 1; i > 0; i--) {
-      if (data[i][userIdCol] === userId) {
-        activitySheet.deleteRow(i + 1);
-      }
-    }
-  }
-
-  // AbsenceLogから削除
-  const absenceSheet = ss.getSheetByName('AbsenceLog');
-  if (absenceSheet) {
-    const data = absenceSheet.getDataRange().getValues();
-    const userIdCol = 1; // B列
-
-    for (let i = data.length - 1; i > 0; i--) {
-      if (data[i][userIdCol] === userId) {
-        absenceSheet.deleteRow(i + 1);
-      }
-    }
-  }
-
-  // Usersから削除
-  const usersSheet = ss.getSheetByName('Users');
-  if (usersSheet) {
-    const data = usersSheet.getDataRange().getValues();
-    const userIdCol = 0; // A列
-
-    for (let i = data.length - 1; i > 0; i--) {
-      if (data[i][userIdCol] === userId) {
-        usersSheet.deleteRow(i + 1);
-      }
-    }
-  }
-
-  return { success: true, message: 'ユーザーを削除しました' };
 }
