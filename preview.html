@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝活トラッキング - ダッシュボード（プレビュー）</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .preview-badge {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      margin-top: 10px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card h3 {
+      color: #666;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .stat-card .value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .chart-container {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-container h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .ranking-table th,
+    .ranking-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .ranking-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .ranking-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .rank-badge {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      border-radius: 50%;
+      font-weight: bold;
+      color: white;
+    }
+
+    .rank-1 { background: gold; color: #333; }
+    .rank-2 { background: silver; color: #333; }
+    .rank-3 { background: #cd7f32; }
+    .rank-other { background: #999; }
+
+    .heatmap {
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+
+    .heatmap-cell {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin: 2px;
+      border-radius: 3px;
+      transition: transform 0.2s;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.5);
+      z-index: 10;
+    }
+
+    .reload-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 50px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s;
+    }
+
+    .reload-btn:hover {
+      background: #5568d3;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌅 朝活トラッキング</h1>
+      <p>みんなの頑張りを可視化しよう！</p>
+      <span class="preview-badge">📝 プレビューモード（ダミーデータ）</span>
+    </div>
+
+    <div id="dashboard">
+      <!-- 統計カード -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>総セッション数</h3>
+          <div class="value" id="totalSessions">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>参加メンバー数</h3>
+          <div class="value" id="totalUsers">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>総活動時間</h3>
+          <div class="value" id="totalHours">0h</div>
+        </div>
+        <div class="stat-card">
+          <h3>平均参加時間</h3>
+          <div class="value" id="avgMinutes">0分</div>
+        </div>
+      </div>
+
+      <!-- 日別参加時間グラフ -->
+      <div class="chart-container">
+        <h2>📈 日別参加時間の推移</h2>
+        <canvas id="dailyChart"></canvas>
+      </div>
+
+      <!-- ランキング -->
+      <div class="chart-container">
+        <h2>🏆 参加時間ランキング</h2>
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>順位</th>
+              <th>メンバー</th>
+              <th>総時間</th>
+              <th>セッション数</th>
+              <th>参加日数</th>
+              <th>平均時間/回</th>
+            </tr>
+          </thead>
+          <tbody id="rankingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- ヒートマップ -->
+      <div class="chart-container">
+        <h2>🔥 活動ヒートマップ</h2>
+        <div id="heatmapContainer" class="heatmap"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="reload-btn" onclick="location.reload()">🔄 リロード</button>
+
+  <script>
+    // ダミーデータを生成
+    function generateDummyData() {
+      const users = ['太郎', '花子', '次郎', '美咲', '健太'];
+      const days = 14;
+      const today = new Date();
+
+      const ranking = users.map((name, index) => ({
+        name,
+        totalMinutes: Math.floor(Math.random() * 500) + 200,
+        sessionCount: Math.floor(Math.random() * 10) + 5,
+        uniqueDays: Math.floor(Math.random() * days) + 3,
+      })).map(user => ({
+        ...user,
+        totalHours: (user.totalMinutes / 60).toFixed(1),
+        avgMinutes: Math.round(user.totalMinutes / user.sessionCount),
+      })).sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+      const dailyData = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        dailyData.push({
+          date: date.toISOString().split('T')[0],
+          totalMinutes: Math.floor(Math.random() * 200) + 50,
+          uniqueUsers: Math.floor(Math.random() * users.length) + 1,
+        });
+      }
+
+      const heatmapData = {};
+      users.forEach(user => {
+        heatmapData[user] = {};
+        dailyData.forEach(day => {
+          if (Math.random() > 0.3) {
+            heatmapData[user][day.date] = Math.floor(Math.random() * 120) + 30;
+          }
+        });
+      });
+
+      return {
+        ranking,
+        dailyData,
+        totalSessions: ranking.reduce((sum, u) => sum + u.sessionCount, 0),
+        totalUsers: users.length,
+        heatmapData,
+      };
+    }
+
+    // データを表示
+    function displayDashboard() {
+      const stats = generateDummyData();
+
+      // 統計カードの更新
+      document.getElementById('totalSessions').textContent = stats.totalSessions;
+      document.getElementById('totalUsers').textContent = stats.totalUsers;
+
+      const totalMinutes = stats.ranking.reduce((sum, user) => sum + user.totalMinutes, 0);
+      document.getElementById('totalHours').textContent = (totalMinutes / 60).toFixed(1) + 'h';
+      document.getElementById('avgMinutes').textContent =
+        Math.round(totalMinutes / stats.totalSessions) + '分';
+
+      // ランキングテーブルの作成
+      const rankingBody = document.getElementById('rankingBody');
+      rankingBody.innerHTML = '';
+
+      stats.ranking.forEach((user, index) => {
+        const row = document.createElement('tr');
+        const rank = index + 1;
+        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+
+        row.innerHTML = `
+          <td><span class="rank-badge ${rankClass}">${rank}</span></td>
+          <td><strong>${user.name}</strong></td>
+          <td>${user.totalHours}時間</td>
+          <td>${user.sessionCount}回</td>
+          <td>${user.uniqueDays}日</td>
+          <td>${user.avgMinutes}分</td>
+        `;
+        rankingBody.appendChild(row);
+      });
+
+      // 日別グラフの作成
+      createDailyChart(stats.dailyData);
+
+      // ヒートマップの表示
+      displayHeatmap(stats.heatmapData);
+    }
+
+    function createDailyChart(dailyData) {
+      const ctx = document.getElementById('dailyChart').getContext('2d');
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dailyData.map(d => d.date),
+          datasets: [{
+            label: '参加時間（分）',
+            data: dailyData.map(d => d.totalMinutes),
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            tension: 0.4,
+            fill: true,
+          }, {
+            label: '参加人数',
+            data: dailyData.map(d => d.uniqueUsers),
+            borderColor: '#764ba2',
+            backgroundColor: 'rgba(118, 75, 162, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y1',
+          }]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              grid: {
+                drawOnChartArea: false,
+              },
+            },
+          }
+        }
+      });
+    }
+
+    function displayHeatmap(heatmapData) {
+      const container = document.getElementById('heatmapContainer');
+      container.innerHTML = '';
+
+      Object.entries(heatmapData).forEach(([user, dates]) => {
+        const userRow = document.createElement('div');
+        userRow.style.marginBottom = '10px';
+
+        const label = document.createElement('strong');
+        label.textContent = user + ': ';
+        userRow.appendChild(label);
+
+        const allDates = Object.keys(dates).sort();
+
+        allDates.forEach(date => {
+          const minutes = dates[date];
+          const cell = document.createElement('div');
+          cell.className = 'heatmap-cell';
+          cell.title = `${date}: ${minutes}分`;
+
+          const intensity = Math.min(minutes / 60, 1);
+          cell.style.backgroundColor = `rgba(102, 126, 234, ${intensity})`;
+
+          userRow.appendChild(cell);
+        });
+
+        container.appendChild(userRow);
+      });
+    }
+
+    // ページ読み込み時に実行
+    window.onload = displayDashboard;
+  </script>
+</body>
+</html>
