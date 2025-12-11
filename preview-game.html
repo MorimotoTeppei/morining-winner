@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝活ゲーム - Morning Winner（プレビュー）</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+      animation: fadeIn 0.6s;
+    }
+
+    .header h1 {
+      font-size: 3rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      opacity: 0.95;
+    }
+
+    .preview-badge {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 25px;
+      font-size: 1rem;
+      margin-top: 15px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .mvp-banner {
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+      animation: slideUp 0.8s;
+    }
+
+    .mvp-banner h2 {
+      color: #333;
+      font-size: 2rem;
+      margin-bottom: 15px;
+    }
+
+    .mvp-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 1.5rem;
+      color: #333;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+      animation: slideUp 0.6s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+    }
+
+    .stat-card h3 {
+      color: #666;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+
+    .stat-card .value {
+      font-size: 2.8rem;
+      font-weight: bold;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .section {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideUp 0.8s;
+    }
+
+    .section h2 {
+      margin-bottom: 25px;
+      color: #333;
+      font-size: 1.8rem;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .ranking-table th,
+    .ranking-table td {
+      padding: 16px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .ranking-table th {
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      font-weight: 700;
+      color: #495057;
+      position: sticky;
+      top: 0;
+    }
+
+    .ranking-table tr:hover {
+      background: #f8f9fa;
+      transition: background 0.2s;
+    }
+
+    .rank-badge {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      line-height: 40px;
+      text-align: center;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #333; box-shadow: 0 4px 8px rgba(255, 215, 0, 0.5); }
+    .rank-2 { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #333; box-shadow: 0 4px 8px rgba(192, 192, 192, 0.5); }
+    .rank-3 { background: linear-gradient(135deg, #cd7f32, #f4a460); color: white; box-shadow: 0 4px 8px rgba(205, 127, 50, 0.5); }
+    .rank-other { background: #6c757d; color: white; }
+
+    .level-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .streak-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #f093fb, #f5576c);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .badge {
+      background: #f8f9fa;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      border: 1px solid #e9ecef;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.3s;
+    }
+
+    .reload-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 50px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .reload-btn:hover {
+      background: #5568d3;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎮 朝活ゲーム - Morning Winner</h1>
+      <p>継続は力なり！みんなでレベルアップしよう！</p>
+      <span class="preview-badge">📝 プレビューモード（ダミーデータ）</span>
+    </div>
+
+    <div id="dashboard">
+      <!-- 今日のMVP -->
+      <div id="mvpSection"></div>
+
+      <!-- 統計カード -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>総参加回数</h3>
+          <div class="value" id="totalSessions">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>プレイヤー数</h3>
+          <div class="value" id="totalUsers">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>最高ストリーク</h3>
+          <div class="value" id="maxStreak">0🔥</div>
+        </div>
+        <div class="stat-card">
+          <h3>平均レベル</h3>
+          <div class="value" id="avgLevel">Lv.0</div>
+        </div>
+      </div>
+
+      <!-- ランキング -->
+      <div class="section">
+        <h2>🏆 総合ランキング</h2>
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>順位</th>
+              <th>プレイヤー</th>
+              <th>レベル</th>
+              <th>総ポイント</th>
+              <th>参加日数</th>
+              <th>オンタイム率</th>
+              <th>ストリーク</th>
+              <th>バッジ</th>
+            </tr>
+          </thead>
+          <tbody id="rankingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- 日別グラフ -->
+      <div class="section">
+        <h2>📊 日別参加状況</h2>
+        <canvas id="dailyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <button class="reload-btn" onclick="location.reload()">🔄 リロード</button>
+
+  <script>
+    // ダミーデータを生成
+    function generateDummyData() {
+      const users = [
+        { name: '太郎', id: '1' },
+        { name: '花子', id: '2' },
+        { name: '次郎', id: '3' },
+        { name: '美咲', id: '4' },
+        { name: '健太', id: '5' },
+      ];
+
+      const days = 30;
+      const today = new Date();
+
+      // ユーザー統計
+      const ranking = users.map((user, index) => {
+        const totalDays = Math.floor(Math.random() * 25) + 10;
+        const onTimeCount = Math.floor(totalDays * (0.5 + Math.random() * 0.5));
+        const lateCount = Math.floor((totalDays - onTimeCount) * 0.5);
+        const veryLateCount = Math.floor((totalDays - onTimeCount - lateCount) * 0.7);
+        const criticalCount = totalDays - onTimeCount - lateCount - veryLateCount;
+
+        const totalPoints = (onTimeCount * 10) + (lateCount * 5) + (veryLateCount * 2);
+        const level = Math.floor(totalPoints / 100) + 1;
+        const streak = Math.floor(Math.random() * 15) + 1;
+        const maxStreak = streak + Math.floor(Math.random() * 10);
+        const onTimeRate = ((onTimeCount / totalDays) * 100).toFixed(1);
+
+        const badges = [];
+        if (maxStreak >= 30) badges.push('🥈 シルバー');
+        if (maxStreak >= 10) badges.push('🥉 ブロンズ');
+        if (onTimeRate >= 80) badges.push('⭐ 早起き王');
+        if (onTimeRate === '100.0') badges.push('🎯 完璧主義者');
+        if (Math.random() > 0.7) badges.push('🎉 奇跡の参加');
+
+        return {
+          displayName: user.name,
+          level,
+          totalPoints,
+          totalDays,
+          onTimeCount,
+          lateCount,
+          veryLateCount,
+          criticalCount,
+          onTimeRate,
+          streak,
+          maxStreak,
+          badges,
+          miracleCount: badges.includes('🎉 奇跡の参加') ? 1 : 0,
+        };
+      }).sort((a, b) => b.totalPoints - a.totalPoints);
+
+      // 日別データ
+      const dailyData = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+
+        const onTimeCount = Math.floor(Math.random() * 3) + 1;
+        const lateCount = Math.floor(Math.random() * 2);
+        const veryLateCount = Math.floor(Math.random() * 1);
+        const criticalCount = Math.random() > 0.8 ? 1 : 0;
+
+        dailyData.push({
+          date: date.toISOString().split('T')[0],
+          onTimeCount,
+          lateCount,
+          veryLateCount,
+          criticalCount,
+        });
+      }
+
+      // 今日のMVP
+      const mvp = {
+        displayName: ranking[0].displayName,
+        emoji: '🌟',
+        label: 'オンタイム',
+        points: 10,
+        joinTime: new Date().setHours(7, Math.floor(Math.random() * 15), 0),
+      };
+
+      return {
+        ranking,
+        dailyData,
+        mvp,
+        totalSessions: ranking.reduce((sum, u) => sum + u.totalDays, 0),
+        totalUsers: users.length,
+      };
+    }
+
+    function displayStats(stats) {
+      // MVP表示
+      if (stats.mvp) {
+        const mvpSection = document.getElementById('mvpSection');
+        mvpSection.innerHTML = `
+          <div class="mvp-banner">
+            <h2>🏆 今日のMVP</h2>
+            <div class="mvp-info">
+              <span style="font-size: 3rem;">${stats.mvp.emoji}</span>
+              <div>
+                <div style="font-weight: bold; font-size: 2rem;">${stats.mvp.displayName}</div>
+                <div>${stats.mvp.label} - ${stats.mvp.points}ポイント獲得！</div>
+                <div style="font-size: 0.9rem; opacity: 0.8;">参加時刻: ${new Date(stats.mvp.joinTime).toLocaleTimeString('ja-JP')}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // 統計カード
+      document.getElementById('totalSessions').textContent = stats.totalSessions;
+      document.getElementById('totalUsers').textContent = stats.totalUsers;
+
+      const maxStreak = Math.max(...stats.ranking.map(r => r.maxStreak), 0);
+      document.getElementById('maxStreak').textContent = maxStreak + '🔥';
+
+      const avgLevel = (stats.ranking.reduce((sum, r) => sum + r.level, 0) / stats.ranking.length).toFixed(1);
+      document.getElementById('avgLevel').textContent = 'Lv.' + avgLevel;
+
+      // ランキング
+      const rankingBody = document.getElementById('rankingBody');
+      rankingBody.innerHTML = '';
+
+      stats.ranking.forEach((user, index) => {
+        const rank = index + 1;
+        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+
+        const badgesHTML = user.badges.map(b => `<span class="badge">${b}</span>`).join('');
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span class="rank-badge ${rankClass}">${rank}</span></td>
+          <td>
+            <strong>${user.displayName}</strong>
+            ${user.miracleCount > 0 ? '🎉' : ''}
+          </td>
+          <td><span class="level-badge">Lv.${user.level}</span></td>
+          <td><strong>${user.totalPoints}</strong> pt</td>
+          <td>${user.totalDays}日</td>
+          <td>
+            <div>${user.onTimeRate}%</div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${user.onTimeRate}%"></div>
+            </div>
+          </td>
+          <td><span class="streak-badge">${user.streak}🔥</span> (最高: ${user.maxStreak})</td>
+          <td><div class="badges">${badgesHTML || '-'}</div></td>
+        `;
+        rankingBody.appendChild(row);
+      });
+
+      // 日別グラフ
+      createDailyChart(stats.dailyData);
+    }
+
+    function createDailyChart(dailyData) {
+      const ctx = document.getElementById('dailyChart').getContext('2d');
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dailyData.map(d => d.date),
+          datasets: [
+            {
+              label: '🌟 オンタイム',
+              data: dailyData.map(d => d.onTimeCount),
+              backgroundColor: 'rgba(40, 167, 69, 0.8)',
+            },
+            {
+              label: '⚠️ 遅刻',
+              data: dailyData.map(d => d.lateCount),
+              backgroundColor: 'rgba(255, 193, 7, 0.8)',
+            },
+            {
+              label: '🔥 大遅刻',
+              data: dailyData.map(d => d.veryLateCount),
+              backgroundColor: 'rgba(253, 126, 20, 0.8)',
+            },
+            {
+              label: '💀 危機感もてよ！',
+              data: dailyData.map(d => d.criticalCount),
+              backgroundColor: 'rgba(220, 53, 69, 0.8)',
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            tooltip: {
+              mode: 'index',
+            }
+          }
+        }
+      });
+    }
+
+    // ページ読み込み時に実行
+    window.onload = function() {
+      const stats = generateDummyData();
+      displayStats(stats);
+    };
+  </script>
+</body>
+</html>

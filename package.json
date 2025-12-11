@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node bot.js",
-    "dev": "node --watch bot.js"
+    "dev": "node --watch bot.js",
+    "setup": "node setup-sheets.js",
+    "register-commands": "node register-commands.js"
   },
   "keywords": [
     "discord",

@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>朝活バトル - Morning Winner（プレビュー）</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 15px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+      animation: fadeIn 0.6s;
+      position: relative;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .preview-badge {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 25px;
+      font-size: 1rem;
+      margin-top: 15px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .add-user-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: white;
+      color: #667eea;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .add-user-btn:hover {
+      background: #f0f0f0;
+      transform: scale(1.05);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .mvp-banner {
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+      animation: slideUp 0.8s;
+    }
+
+    .mvp-banner h2 {
+      color: #333;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      margin-bottom: 10px;
+    }
+
+    .mvp-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      color: #333;
+      flex-wrap: wrap;
+    }
+
+    .player-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .player-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideUp 0.6s;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .player-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .player-card.rank-1::before {
+      content: '👑';
+      position: absolute;
+      top: -10px;
+      right: 10px;
+      font-size: 3rem;
+      opacity: 0.2;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #dc3545;
+      color: white;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .player-card:hover .delete-btn {
+      opacity: 0.8;
+    }
+
+    .delete-btn:hover {
+      opacity: 1 !important;
+      transform: scale(1.1);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      animation: fadeIn 0.3s;
+    }
+
+    .modal-content {
+      background-color: white;
+      margin: 5% auto;
+      padding: 30px;
+      border-radius: 16px;
+      max-width: 900px;
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+      animation: slideUp 0.3s;
+    }
+
+    .close {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #aaa;
+      cursor: pointer;
+    }
+
+    .close:hover {
+      color: #000;
+    }
+
+    .modal-header {
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #667eea;
+    }
+
+    .modal-header h2 {
+      color: #333;
+      font-size: 1.8rem;
+    }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .modal-stat-item {
+      text-align: center;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+
+    .modal-stat-label {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .modal-stat-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .chart-container-modal {
+      position: relative;
+      height: 400px;
+      margin-bottom: 20px;
+    }
+
+    /* Confirmation Dialog */
+    .confirm-dialog {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .confirm-dialog h3 {
+      color: #dc3545;
+      margin-bottom: 15px;
+    }
+
+    .confirm-dialog p {
+      margin-bottom: 20px;
+      color: #666;
+    }
+
+    .confirm-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 10px 25px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    /* Add User Form */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .player-header, .player-name, .rank-badge, .player-stats, .stat-item,
+    .stat-label, .stat-value, .badges, .badge, .heatmap-section,
+    .player-heatmap, .heatmap-header, .heatmap-grid, .heatmap-cell,
+    .status-on-time, .status-late, .status-very-late, .status-critical,
+    .status-absent, .status-missing, .legend, .legend-item, .legend-color {
+      /* 前のスタイルをそのまま使用 */
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .player-name {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #333; }
+    .rank-2 { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #333; }
+    .rank-3 { background: linear-gradient(135deg, #cd7f32, #f4a460); color: white; }
+    .rank-4 { background: #6c757d; color: white; }
+
+    .player-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .badge {
+      background: #f8f9fa;
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      border: 1px solid #e9ecef;
+    }
+
+    .heatmap-section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: slideUp 0.8s;
+    }
+
+    .heatmap-section h2 {
+      margin-bottom: 20px;
+      color: #333;
+      font-size: clamp(1.3rem, 3vw, 1.8rem);
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .player-heatmap {
+      margin-bottom: 25px;
+    }
+
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .heatmap-header strong {
+      font-size: 1.1rem;
+      color: #333;
+    }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(18px, 1fr));
+      gap: 3px;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    .heatmap-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      min-width: 18px;
+      min-height: 18px;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.3);
+      z-index: 10;
+    }
+
+    .status-on-time { background-color: #28a745; }
+    .status-late { background-color: #ffc107; }
+    .status-very-late { background-color: #fd7e14; }
+    .status-critical { background-color: #dc3545; }
+    .status-absent { background-color: #6c757d; opacity: 0.5; }
+    .status-missing { background-color: #e9ecef; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .legend-color {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+    }
+
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .add-user-btn {
+        position: static;
+        margin-top: 10px;
+        display: block;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .player-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-content {
+        margin: 10% 10px;
+        padding: 20px;
+      }
+
+      .chart-container-modal {
+        height: 300px;
+      }
+
+      .heatmap-grid {
+        grid-template-columns: repeat(auto-fill, minmax(14px, 1fr));
+        gap: 2px;
+      }
+
+      .heatmap-cell {
+        min-width: 14px;
+        min-height: 14px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .player-stats {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .modal-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚔️ 朝活バトル</h1>
+      <p>4人で競え！継続は力なり！</p>
+      <span class="preview-badge">📝 プレビューモード（ダミーデータ）</span>
+      <button class="add-user-btn" onclick="showAddUserModal()">➕ ユーザー追加</button>
+    </div>
+
+    <div id="dashboard">
+      <div id="mvpSection"></div>
+      <div class="player-cards" id="playerCards"></div>
+
+      <div class="heatmap-section">
+        <h2>📅 個人別活動ヒートマップ（過去30日）</h2>
+        <div id="heatmapContainer"></div>
+
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-color status-on-time"></div>
+            <span>🌟 オンタイム (7:00-7:14)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-late"></div>
+            <span>⚠️ 遅刻 (7:15-7:59)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-very-late"></div>
+            <span>🔥 大遅刻 (8:00-8:59)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-critical"></div>
+            <span>💀 危機感もてよ！ (9:00-)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-absent"></div>
+            <span>📝 欠席申請</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color status-missing"></div>
+            <span>❌ 不参加</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細モーダル -->
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeDetailModal()">&times;</span>
+      <div class="modal-header">
+        <h2 id="detailPlayerName"></h2>
+      </div>
+
+      <div class="modal-stats" id="detailStats"></div>
+
+      <h3 style="margin-bottom: 15px; color: #333;">📈 参加時間の推移（7時からの差分）</h3>
+      <div class="chart-container-modal">
+        <canvas id="timeChart"></canvas>
+      </div>
+
+      <p style="font-size: 0.9rem; color: #666; text-align: center;">
+        ※ プラスは遅刻、マイナスは早すぎる参加を表します。0分が7:00ジャストです。
+      </p>
+    </div>
+  </div>
+
+  <!-- 追加モーダル -->
+  <div id="addUserModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+      <span class="close" onclick="closeAddUserModal()">&times;</span>
+      <div class="modal-header">
+        <h2>➕ ユーザー追加</h2>
+      </div>
+
+      <form id="addUserForm" onsubmit="addUser(event)">
+        <div class="form-group">
+          <label>ユーザーID *</label>
+          <input type="text" id="newUserId" required placeholder="Discord User ID">
+        </div>
+
+        <div class="form-group">
+          <label>ユーザー名 *</label>
+          <input type="text" id="newUsername" required placeholder="Discord Username">
+        </div>
+
+        <div class="form-group">
+          <label>表示名 *</label>
+          <input type="text" id="newDisplayName" required placeholder="表示名（ニックネーム）">
+        </div>
+
+        <div class="confirm-buttons">
+          <button type="submit" class="btn btn-danger" style="background: #667eea;">追加</button>
+          <button type="button" class="btn btn-secondary" onclick="closeAddUserModal()">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 削除確認モーダル -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content confirm-dialog">
+      <h3>⚠️ ユーザーを削除しますか？</h3>
+      <p id="deleteUserName"></p>
+      <p style="font-size: 0.85rem; color: #dc3545;">この操作は取り消せません。全てのデータが削除されます。</p>
+
+      <div class="confirm-buttons">
+        <button class="btn btn-danger" onclick="confirmDelete()">削除</button>
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUserId = null;
+    let currentChart = null;
+    let playersData = [];
+
+    function generateDummyData() {
+      const players = [
+        { name: '太郎', userId: '1' },
+        { name: '花子', userId: '2' },
+        { name: '次郎', userId: '3' },
+        { name: '美咲', userId: '4' },
+      ];
+
+      const days = 30;
+
+      playersData = players.map((player, index) => {
+        const heatmapDays = [];
+        const timeData = [];
+        let totalPoints = 0;
+        let onTimeCount = 0;
+        let totalDays = 0;
+        let currentStreak = 0;
+
+        for (let i = days - 1; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+
+          let status;
+          const rand = Math.random();
+
+          // プレイヤーごとに異なる確率
+          if (index === 0) {
+            status = rand < 0.8 ? 'on-time' : (rand < 0.9 ? 'late' : 'missing');
+          } else if (index === 1) {
+            status = rand < 0.6 ? 'on-time' : (rand < 0.8 ? 'late' : (rand < 0.9 ? 'very-late' : 'missing'));
+          } else if (index === 2) {
+            status = rand < 0.4 ? 'on-time' : (rand < 0.6 ? 'late' : (rand < 0.8 ? 'very-late' : 'missing'));
+          } else {
+            status = rand < 0.3 ? 'on-time' : (rand < 0.5 ? 'late' : (rand < 0.7 ? 'very-late' : (rand < 0.85 ? 'critical' : 'missing')));
+          }
+
+          const points = { 'on-time': 10, 'late': 5, 'very-late': 2, 'critical': 0, 'missing': 0 }[status];
+
+          heatmapDays.push({ date: dateStr, status, points });
+
+          if (status !== 'missing') {
+            totalDays++;
+            totalPoints += points;
+
+            if (status === 'on-time') {
+              onTimeCount++;
+              currentStreak++;
+            } else {
+              currentStreak = 0;
+            }
+
+            // 7時からの差分を生成（-10分〜+60分）
+            let diffMinutes;
+            if (status === 'on-time') {
+              diffMinutes = Math.floor(Math.random() * 15) - 5; // -5〜+10分
+            } else if (status === 'late') {
+              diffMinutes = Math.floor(Math.random() * 45) + 15; // +15〜+60分
+            } else if (status === 'very-late') {
+              diffMinutes = Math.floor(Math.random() * 60) + 60; // +60〜+120分
+            } else {
+              diffMinutes = Math.floor(Math.random() * 60) + 120; // +120〜+180分
+            }
+
+            timeData.push({
+              date: dateStr,
+              diffMinutes,
+              status,
+              points,
+            });
+          }
+        }
+
+        const onTimeRate = totalDays > 0 ? ((onTimeCount / totalDays) * 100).toFixed(1) : 0;
+        const level = Math.floor(totalPoints / 100) + 1;
+
+        const badges = [];
+        if (onTimeRate >= 80) badges.push('⭐ 早起き王');
+        if (currentStreak >= 7) badges.push('🔥 連続記録');
+        if (totalDays >= 25) badges.push('🥉 ブロンズ');
+
+        return {
+          displayName: player.name,
+          userId: player.userId,
+          level,
+          totalPoints,
+          totalDays,
+          onTimeRate,
+          streak: currentStreak,
+          maxStreak: currentStreak + Math.floor(Math.random() * 5),
+          badges,
+          miracleCount: 0,
+          heatmapDays,
+          timeData,
+          onTimeCount,
+        };
+      }).sort((a, b) => b.totalPoints - a.totalPoints);
+
+      const mvp = {
+        displayName: playersData[0].displayName,
+        emoji: '🌟',
+        label: 'オンタイム',
+        points: 10,
+      };
+
+      return { ranking: playersData, mvp };
+    }
+
+    function displayStats(stats) {
+      if (stats.mvp) {
+        const mvpSection = document.getElementById('mvpSection');
+        mvpSection.innerHTML = `
+          <div class="mvp-banner">
+            <h2>🏆 今日のMVP</h2>
+            <div class="mvp-info">
+              <span style="font-size: clamp(2rem, 5vw, 3rem);">${stats.mvp.emoji}</span>
+              <div>
+                <div style="font-weight: bold; font-size: clamp(1.3rem, 3vw, 2rem);">${stats.mvp.displayName}</div>
+                <div style="font-size: clamp(0.9rem, 2vw, 1.2rem);">${stats.mvp.label} - ${stats.mvp.points}ポイント獲得！</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const playerCards = document.getElementById('playerCards');
+      playerCards.innerHTML = '';
+
+      stats.ranking.forEach((player, index) => {
+        const rank = index + 1;
+        const rankClass = `rank-${rank}`;
+        const badgesHTML = player.badges.map(b => `<span class="badge">${b}</span>`).join('');
+
+        const card = document.createElement('div');
+        card.className = `player-card ${rankClass}`;
+        card.onclick = () => showDetail(player.userId);
+
+        card.innerHTML = `
+          <button class="delete-btn" onclick="event.stopPropagation(); showDeleteModal('${player.userId}', '${player.displayName}')">×</button>
+
+          <div class="player-header">
+            <div class="player-name">${player.displayName}</div>
+            <span class="rank-badge ${rankClass}">#${rank}</span>
+          </div>
+
+          <div class="player-stats">
+            <div class="stat-item">
+              <div class="stat-label">レベル</div>
+              <div class="stat-value">Lv.${player.level}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">ポイント</div>
+              <div class="stat-value">${player.totalPoints}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">ストリーク</div>
+              <div class="stat-value">${player.streak}🔥</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">オンタイム率</div>
+              <div class="stat-value">${player.onTimeRate}%</div>
+            </div>
+          </div>
+
+          <div style="font-size: 0.85rem; color: #666;">
+            参加日数: ${player.totalDays}日 | 最高ストリーク: ${player.maxStreak}🔥
+          </div>
+
+          ${badgesHTML ? `<div class="badges">${badgesHTML}</div>` : ''}
+        `;
+
+        playerCards.appendChild(card);
+      });
+
+      displayHeatmap(stats.ranking);
+    }
+
+    function showDetail(userId) {
+      const player = playersData.find(p => p.userId === userId);
+      if (!player) return;
+
+      document.getElementById('detailModal').style.display = 'block';
+      document.getElementById('detailPlayerName').textContent = player.displayName + ' の詳細';
+
+      const detailStats = document.getElementById('detailStats');
+      detailStats.innerHTML = `
+        <div class="modal-stat-item">
+          <div class="modal-stat-label">レベル</div>
+          <div class="modal-stat-value">Lv.${player.level}</div>
+        </div>
+        <div class="modal-stat-item">
+          <div class="modal-stat-label">総ポイント</div>
+          <div class="modal-stat-value">${player.totalPoints}</div>
+        </div>
+        <div class="modal-stat-item">
+          <div class="modal-stat-label">参加日数</div>
+          <div class="modal-stat-value">${player.totalDays}日</div>
+        </div>
+        <div class="modal-stat-item">
+          <div class="modal-stat-label">オンタイム率</div>
+          <div class="modal-stat-value">${player.onTimeRate}%</div>
+        </div>
+        <div class="modal-stat-item">
+          <div class="modal-stat-label">現在ストリーク</div>
+          <div class="modal-stat-value">${player.streak}🔥</div>
+        </div>
+        <div class="modal-stat-item">
+          <div class="modal-stat-label">最高ストリーク</div>
+          <div class="modal-stat-value">${player.maxStreak}🔥</div>
+        </div>
+      `;
+
+      createTimeChart(player.timeData);
+    }
+
+    function createTimeChart(timeData) {
+      const ctx = document.getElementById('timeChart').getContext('2d');
+
+      if (currentChart) {
+        currentChart.destroy();
+      }
+
+      const dates = timeData.map(d => d.date);
+      const diffs = timeData.map(d => d.diffMinutes);
+
+      currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: '7時からの差分（分）',
+            data: diffs,
+            borderColor: '#667eea',
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const value = context.parsed.y;
+                  if (value > 0) {
+                    return `遅刻: +${value}分`;
+                  } else if (value < 0) {
+                    return `早すぎ: ${value}分`;
+                  } else {
+                    return 'ピッタリ 7:00!';
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: '分（プラス=遅刻、マイナス=早すぎ）'
+              },
+              grid: {
+                color: function(context) {
+                  if (context.tick.value === 0) {
+                    return '#28a745';
+                  }
+                  return 'rgba(0, 0, 0, 0.1)';
+                },
+                lineWidth: function(context) {
+                  if (context.tick.value === 0) {
+                    return 3;
+                  }
+                  return 1;
+                }
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: '日付'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detailModal').style.display = 'none';
+    }
+
+    function showAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'block';
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'none';
+      document.getElementById('addUserForm').reset();
+    }
+
+    function addUser(event) {
+      event.preventDefault();
+      alert('プレビューモードでは追加できません');
+      closeAddUserModal();
+    }
+
+    function showDeleteModal(userId, displayName) {
+      currentUserId = userId;
+      document.getElementById('deleteUserName').textContent = `「${displayName}」を削除しますか？`;
+      document.getElementById('deleteModal').style.display = 'block';
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').style.display = 'none';
+      currentUserId = null;
+    }
+
+    function confirmDelete() {
+      alert('プレビューモードでは削除できません');
+      closeDeleteModal();
+    }
+
+    function displayHeatmap(ranking) {
+      const container = document.getElementById('heatmapContainer');
+      container.innerHTML = '';
+
+      ranking.forEach(player => {
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'player-heatmap';
+
+        playerDiv.innerHTML = `
+          <div class="heatmap-header">
+            <strong>${player.displayName}</strong>
+            <div style="font-size: 0.9rem; color: #666;">
+              連続: ${player.streak}日🔥 | オンタイム率: ${player.onTimeRate}%
+            </div>
+          </div>
+          <div class="heatmap-grid" id="heatmap-${player.userId}"></div>
+        `;
+
+        container.appendChild(playerDiv);
+
+        const grid = document.getElementById(`heatmap-${player.userId}`);
+
+        player.heatmapDays.forEach(day => {
+          const cell = document.createElement('div');
+          cell.className = `heatmap-cell status-${day.status}`;
+          cell.title = `${day.date}: ${getStatusLabel(day.status)} (${day.points}pt)`;
+          grid.appendChild(cell);
+        });
+      });
+    }
+
+    function getStatusLabel(status) {
+      const labels = {
+        'on-time': '🌟 オンタイム',
+        'late': '⚠️ 遅刻',
+        'very-late': '🔥 大遅刻',
+        'critical': '💀 危機感もてよ！',
+        'absent': '📝 欠席申請',
+        'missing': '❌ 不参加',
+      };
+      return labels[status] || status;
+    }
+
+    window.onload = function() {
+      const stats = generateDummyData();
+      displayStats(stats);
+    };
+
+    window.onclick = function(event) {
+      if (event.target == document.getElementById('detailModal')) {
+        closeDetailModal();
+      }
+      if (event.target == document.getElementById('addUserModal')) {
+        closeAddUserModal();
+      }
+      if (event.target == document.getElementById('deleteModal')) {
+        closeDeleteModal();
+      }
+    }
+  </script>
+</body>
+</html>

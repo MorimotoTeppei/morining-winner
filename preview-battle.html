@@ -4,7 +4,7 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>朝活バトル - Morning Winner</title>
+  <title>朝活バトル - Morning Winner（プレビュー）</title>
   <style>
     * {
       margin: 0;
@@ -40,6 +40,22 @@
     .header p {
       font-size: clamp(1rem, 2vw, 1.2rem);
       opacity: 0.95;
+    }
+
+    .preview-badge {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 8px 20px;
+      border-radius: 25px;
+      font-size: 1rem;
+      margin-top: 15px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
     }
 
     @keyframes fadeIn {
@@ -256,25 +272,25 @@
       border-radius: 3px;
     }
 
-    .loading {
-      text-align: center;
-      padding: 60px 20px;
+    .reload-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #667eea;
       color: white;
-      font-size: 1.2rem;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 50px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s;
+      z-index: 1000;
     }
 
-    .loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 5px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .reload-btn:hover {
+      background: #5568d3;
+      transform: scale(1.05);
     }
 
     /* レスポンシブ対応 */
@@ -328,14 +344,10 @@
     <div class="header">
       <h1>⚔️ 朝活バトル</h1>
       <p>4人で競え！継続は力なり！</p>
+      <span class="preview-badge">📝 プレビューモード（ダミーデータ）</span>
     </div>
 
-    <div id="loading" class="loading">
-      <div class="loading-spinner"></div>
-      <p>データを読み込んでいます...</p>
-    </div>
-
-    <div id="dashboard" style="display: none;">
+    <div id="dashboard">
       <!-- 今日のMVP -->
       <div id="mvpSection"></div>
 
@@ -377,18 +389,97 @@
     </div>
   </div>
 
+  <button class="reload-btn" onclick="location.reload()">🔄 リロード</button>
+
   <script>
-    function loadDashboard() {
-      google.script.run
-        .withSuccessHandler(displayStats)
-        .withFailureHandler(showError)
-        .getGameStats();
+    function generateDummyData() {
+      const players = [
+        { name: '太郎', userId: '1' },
+        { name: '花子', userId: '2' },
+        { name: '次郎', userId: '3' },
+        { name: '美咲', userId: '4' },
+      ];
+
+      const days = 30;
+      const statuses = ['on-time', 'late', 'very-late', 'critical', 'missing', 'absent'];
+      const points = { 'on-time': 10, 'late': 5, 'very-late': 2, 'critical': 0, 'missing': 0, 'absent': 0 };
+
+      const ranking = players.map((player, index) => {
+        const heatmapDays = [];
+        let totalPoints = 0;
+        let onTimeCount = 0;
+        let totalDays = 0;
+        let currentStreak = 0;
+
+        for (let i = days - 1; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+
+          let status;
+          const rand = Math.random();
+
+          // プレイヤーごとに異なる確率
+          if (index === 0) { // 1位（太郎）: オンタイム率80%
+            status = rand < 0.8 ? 'on-time' : (rand < 0.9 ? 'late' : 'missing');
+          } else if (index === 1) { // 2位（花子）: オンタイム率60%
+            status = rand < 0.6 ? 'on-time' : (rand < 0.8 ? 'late' : (rand < 0.9 ? 'very-late' : 'missing'));
+          } else if (index === 2) { // 3位（次郎）: オンタイム率40%
+            status = rand < 0.4 ? 'on-time' : (rand < 0.6 ? 'late' : (rand < 0.8 ? 'very-late' : 'missing'));
+          } else { // 4位（美咲）: オンタイム率30%
+            status = rand < 0.3 ? 'on-time' : (rand < 0.5 ? 'late' : (rand < 0.7 ? 'very-late' : (rand < 0.85 ? 'critical' : 'missing')));
+          }
+
+          const dayPoints = points[status];
+          heatmapDays.push({ date: dateStr, status, points: dayPoints });
+
+          if (status !== 'missing' && status !== 'absent') {
+            totalPoints += dayPoints;
+            totalDays++;
+            if (status === 'on-time') {
+              onTimeCount++;
+              currentStreak++;
+            } else {
+              currentStreak = 0;
+            }
+          }
+        }
+
+        const onTimeRate = totalDays > 0 ? ((onTimeCount / totalDays) * 100).toFixed(1) : 0;
+        const level = Math.floor(totalPoints / 100) + 1;
+
+        const badges = [];
+        if (onTimeRate >= 80) badges.push('⭐ 早起き王');
+        if (currentStreak >= 7) badges.push('🔥 連続記録');
+        if (totalDays >= 25) badges.push('🥉 ブロンズ');
+
+        return {
+          displayName: player.name,
+          userId: player.userId,
+          level,
+          totalPoints,
+          totalDays,
+          onTimeRate,
+          streak: currentStreak,
+          maxStreak: currentStreak + Math.floor(Math.random() * 5),
+          badges,
+          miracleCount: 0,
+          heatmapDays,
+        };
+      }).sort((a, b) => b.totalPoints - a.totalPoints);
+
+      const mvp = {
+        displayName: ranking[0].displayName,
+        emoji: '🌟',
+        label: 'オンタイム',
+        points: 10,
+        joinTime: new Date().setHours(7, Math.floor(Math.random() * 15), 0),
+      };
+
+      return { ranking, mvp };
     }
 
     function displayStats(stats) {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-
       // MVP表示
       if (stats.mvp) {
         const mvpSection = document.getElementById('mvpSection');
@@ -420,10 +511,7 @@
         card.className = `player-card ${rankClass}`;
         card.innerHTML = `
           <div class="player-header">
-            <div class="player-name">
-              ${player.displayName}
-              ${player.miracleCount > 0 ? '🎉' : ''}
-            </div>
+            <div class="player-name">${player.displayName}</div>
             <span class="rank-badge ${rankClass}">#${rank}</span>
           </div>
 
@@ -457,29 +545,22 @@
       });
 
       // ヒートマップ
-      displayHeatmap(stats.heatmapData, stats.ranking);
+      displayHeatmap(stats.ranking);
     }
 
-    function displayHeatmap(heatmapData, ranking) {
+    function displayHeatmap(ranking) {
       const container = document.getElementById('heatmapContainer');
       container.innerHTML = '';
 
-      // ランキング順に表示
       ranking.forEach(player => {
-        const userData = heatmapData[player.userId];
-        if (!userData) return;
-
         const playerDiv = document.createElement('div');
         playerDiv.className = 'player-heatmap';
 
-        const currentStreak = player.streak || 0;
-        const onTimeRate = player.onTimeRate || 0;
-
         playerDiv.innerHTML = `
           <div class="heatmap-header">
-            <strong>${userData.displayName}</strong>
+            <strong>${player.displayName}</strong>
             <div style="font-size: 0.9rem; color: #666;">
-              連続: ${currentStreak}日🔥 | オンタイム率: ${onTimeRate}%
+              連続: ${player.streak}日🔥 | オンタイム率: ${player.onTimeRate}%
             </div>
           </div>
           <div class="heatmap-grid" id="heatmap-${player.userId}"></div>
@@ -489,7 +570,7 @@
 
         const grid = document.getElementById(`heatmap-${player.userId}`);
 
-        userData.days.forEach(day => {
+        player.heatmapDays.forEach(day => {
           const cell = document.createElement('div');
           cell.className = `heatmap-cell status-${day.status}`;
           cell.title = `${day.date}: ${getStatusLabel(day.status)} (${day.points}pt)`;
@@ -510,15 +591,10 @@
       return labels[status] || status;
     }
 
-    function showError(error) {
-      document.getElementById('loading').innerHTML =
-        `<div style="color: #ff4444; background: white; padding: 30px; border-radius: 12px; max-width: 500px; margin: 0 auto;">
-          <h2>❌ エラーが発生しました</h2>
-          <p>${error.message}</p>
-        </div>`;
-    }
-
-    window.onload = loadDashboard;
+    window.onload = function() {
+      const stats = generateDummyData();
+      displayStats(stats);
+    };
   </script>
 </body>
 </html>

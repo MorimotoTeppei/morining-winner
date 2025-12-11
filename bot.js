@@ -1,6 +1,6 @@
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes } from 'discord.js';
 import dotenv from 'dotenv';
-import { recordVoiceActivity } from './sheets.js';
+import { recordVoiceActivity, recordAbsence, checkAbsence } from './sheets.js';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone.js';
 import utc from 'dayjs/plugin/utc.js';
@@ -17,6 +17,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMessages,
   ],
 });
 
@@ -62,9 +63,12 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
       console.log(`🔴 ${displayName} が退出しました (${leaveTime.format('YYYY-MM-DD HH:mm:ss')})`);
       console.log(`⏱️  滞在時間: ${durationMinutes}分`);
 
+      // 欠席申請をチェック
+      const wasAbsent = await checkAbsence(userId, joinTime.format('YYYY-MM-DD'));
+
       // Google Sheetsに記録
       try {
-        await recordVoiceActivity({
+        const result = await recordVoiceActivity({
           userId,
           username,
           displayName,
@@ -73,13 +77,65 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
           durationMinutes,
           date: joinTime.format('YYYY-MM-DD'),
           joinHour: joinTime.hour(),
+          wasAbsent,
         });
+
+        const { statusInfo } = result;
+        console.log(`${statusInfo.emoji} ${statusInfo.label} - ${statusInfo.points}ポイント`);
+
+        if (wasAbsent) {
+          console.log(`🎉 奇跡の参加！欠席申請していたのに参加しました！`);
+        }
+
         console.log(`✅ Sheetsに記録完了`);
       } catch (error) {
         console.error(`❌ Sheets記録エラー:`, error.message);
       }
 
       activeUsers.delete(userId);
+    }
+  }
+});
+
+// スラッシュコマンドの処理
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'absence') {
+    const now = dayjs().tz('Asia/Tokyo');
+    const today = now.format('YYYY-MM-DD');
+    const hour = now.hour();
+
+    // 4時以降は欠席申請不可
+    if (hour >= 4) {
+      await interaction.reply({
+        content: '❌ 欠席申請は当日の朝4時までです！',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    try {
+      await recordAbsence({
+        userId: interaction.user.id,
+        username: interaction.user.username,
+        displayName: interaction.member.displayName,
+        date: today,
+        requestTime: now.format('YYYY-MM-DD HH:mm:ss'),
+      });
+
+      await interaction.reply({
+        content: `✅ ${today}の欠席を申請しました。ストリークは維持されます！\n（でも参加したら「奇跡の参加」バッジがもらえるよ👀）`,
+        ephemeral: true,
+      });
+
+      console.log(`📝 ${interaction.member.displayName} が ${today} の欠席を申請しました`);
+    } catch (error) {
+      await interaction.reply({
+        content: '❌ エラーが発生しました。もう一度お試しください。',
+        ephemeral: true,
+      });
+      console.error('欠席申請エラー:', error);
     }
   }
 });
