@@ -8,7 +8,14 @@
     "start": "node bot.js",
     "dev": "node --watch bot.js",
     "setup": "node setup-sheets.js",
-    "register-commands": "node register-commands.js"
+    "register-commands": "node register-commands.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop morning-winner-bot",
+    "pm2:restart": "pm2 restart morning-winner-bot",
+    "pm2:logs": "pm2 logs morning-winner-bot",
+    "pm2:status": "pm2 status",
+    "pm2:startup": "pm2 startup",
+    "pm2:save": "pm2 save"
   },
   "keywords": [
     "discord",
@@ -24,5 +31,8 @@
     "dotenv": "^16.3.1",
     "googleapis": "^130.0.0",
     "dayjs": "^1.11.10"
+  },
+  "devDependencies": {
+    "pm2": "^5.4.2"
   }
 }

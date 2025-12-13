@@ -1,9 +1,62 @@
 // Google Apps Script - 4人で競う朝活ゲーム
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Dashboard')
+  return HtmlService.createHtmlOutputFromFile('Dashboard-v3')
     .setTitle('朝活バトル - Morning Winner')
     .setFaviconUrl('https://cdn-icons-png.flaticon.com/512/1828/1828791.png');
+}
+
+// デバッグ用：スプレッドシートの状態を確認
+function debugSpreadsheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+
+  Logger.log('=== スプレッドシート診断 ===');
+  Logger.log('スプレッドシート名: ' + ss.getName());
+  Logger.log('シート数: ' + sheets.length);
+
+  sheets.forEach(sheet => {
+    Logger.log('シート名: ' + sheet.getName());
+    Logger.log('  行数: ' + sheet.getLastRow());
+    Logger.log('  列数: ' + sheet.getLastColumn());
+
+    if (sheet.getLastRow() > 0) {
+      const firstRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      Logger.log('  ヘッダー: ' + JSON.stringify(firstRow));
+    }
+  });
+
+  return {
+    spreadsheetName: ss.getName(),
+    sheetCount: sheets.length,
+    sheets: sheets.map(s => ({
+      name: s.getName(),
+      rows: s.getLastRow(),
+      columns: s.getLastColumn()
+    }))
+  };
+}
+
+// デバッグ用：getActivityDataのテスト
+function testGetActivityData() {
+  Logger.log('=== getActivityData テスト ===');
+  const data = getActivityData();
+  Logger.log('取得したデータ: ' + JSON.stringify(data));
+  Logger.log('データ型: ' + typeof data);
+  Logger.log('配列?: ' + Array.isArray(data));
+  if (Array.isArray(data)) {
+    Logger.log('要素数: ' + data.length);
+  }
+  return data;
+}
+
+// デバッグ用：getGameStatsのテスト
+function testGetGameStats() {
+  Logger.log('=== getGameStats テスト ===');
+  const stats = getGameStats();
+  Logger.log('取得した統計: ' + JSON.stringify(stats));
+  Logger.log('データ型: ' + typeof stats);
+  return stats;
 }
 
 // ActivityLogシートからデータを取得
@@ -19,21 +72,31 @@ function getActivityData() {
   const headers = data[0];
   const rows = data.slice(1);
 
-  return rows.map(row => ({
-    date: row[0],
-    userId: row[1],
-    username: row[2],
-    displayName: row[3],
-    joinTime: row[4],
-    leaveTime: row[5],
-    durationMinutes: row[6],
-    joinHour: row[7],
-    status: row[8] || 'winner',
-    emoji: row[9] || '🏆',
-    label: row[10] || 'Winner',
-    points: row[11] || 10,
-    wasAbsent: row[12] || false,
-  }));
+  return rows.map(row => {
+    // 日付を文字列に変換
+    const dateObj = row[0] instanceof Date ? row[0] : new Date(row[0]);
+    const dateStr = dateObj.toISOString().split('T')[0];
+
+    // 時刻も文字列に変換
+    const joinTimeStr = row[4] instanceof Date ? row[4].toISOString() : String(row[4]);
+    const leaveTimeStr = row[5] instanceof Date ? row[5].toISOString() : String(row[5]);
+
+    return {
+      date: dateStr,
+      userId: String(row[1]),
+      username: String(row[2]),
+      displayName: String(row[3]),
+      joinTime: joinTimeStr,
+      leaveTime: leaveTimeStr,
+      durationMinutes: Number(row[6]),
+      joinHour: Number(row[7]),
+      status: row[8] || 'winner',
+      emoji: row[9] || '🏆',
+      label: row[10] || 'Winner',
+      points: Number(row[11]) || 10,
+      wasAbsent: Boolean(row[12]),
+    };
+  });
 }
 
 // 欠席申請データを取得
@@ -267,12 +330,25 @@ function calculateBadges(userRecords, streaks, recentRate) {
 
 // 統計データを計算
 function getGameStats() {
-  const data = getActivityData();
-  const absences = getAbsenceData();
+  try {
+    const data = getActivityData();
+    const absences = getAbsenceData();
 
-  if (data.error) {
-    return data;
-  }
+    if (data.error) {
+      return data;
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        error: 'データが見つかりません。ボイスチャンネルに参加してログを記録してください。',
+        ranking: [],
+        heatmapData: {},
+        mvp: null,
+        totalSessions: 0,
+        totalUsers: 0,
+        streaks: {},
+      };
+    }
 
   // ユーザー別のデータを集計（同日の最初の参加のみ）
   const userMap = {};
@@ -280,10 +356,13 @@ function getGameStats() {
   data.forEach(record => {
     const { userId, displayName, date, status, points, wasAbsent } = record;
 
+    // dateを文字列として扱う
+    const dateKey = String(date);
+
     if (!userMap[userId]) {
       userMap[userId] = {
-        userId,
-        displayName,
+        userId: String(userId),
+        displayName: String(displayName),
         records: {},
         totalPoints: 0,
         onTimeCount: 0,
@@ -295,9 +374,9 @@ function getGameStats() {
     }
 
     // 同じ日の最初の参加のみをカウント
-    if (!userMap[userId].records[date]) {
-      userMap[userId].records[date] = record;
-      userMap[userId].totalPoints += points || 0;
+    if (!userMap[userId].records[dateKey]) {
+      userMap[userId].records[dateKey] = record;
+      userMap[userId].totalPoints += Number(points) || 0;
 
       if (status === 'winner') userMap[userId].onTimeCount++;
       else if (status === 'late') userMap[userId].lateCount++;
@@ -377,6 +456,19 @@ function getGameStats() {
     totalUsers: Object.keys(userMap).length,
     streaks,
   };
+  } catch (error) {
+    Logger.log('getGameStats エラー: ' + error.message);
+    Logger.log('エラースタック: ' + error.stack);
+    return {
+      error: 'データの処理中にエラーが発生しました: ' + error.message,
+      ranking: [],
+      heatmapData: {},
+      mvp: null,
+      totalSessions: 0,
+      totalUsers: 0,
+      streaks: {},
+    };
+  }
 }
 
 // ユーザー詳細データを取得

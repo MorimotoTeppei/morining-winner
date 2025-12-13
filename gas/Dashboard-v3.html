@@ -429,6 +429,28 @@
     }
 
     function displayStats(stats) {
+      console.log('受信したデータ:', stats);
+
+      // エラーチェック
+      if (!stats) {
+        showError({ message: 'データの取得に失敗しました。スプレッドシートの設定を確認してください。' });
+        return;
+      }
+
+      if (stats.error) {
+        showError({ message: stats.error });
+
+        // エラーがあっても空のダッシュボードを表示
+        if (stats.ranking && stats.ranking.length === 0) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          document.getElementById('mvpSection').innerHTML = '';
+          document.getElementById('playerCards').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666;"><p>まだデータがありません。ボイスチャンネルに参加してログを記録しましょう！</p></div>';
+          document.getElementById('heatmapContainer').innerHTML = '';
+        }
+        return;
+      }
+
       document.getElementById('loading').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
 
