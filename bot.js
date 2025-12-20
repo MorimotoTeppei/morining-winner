@@ -29,6 +29,13 @@ client.once('ready', () => {
   console.log(`✅ Bot起動完了: ${client.user.tag}`);
   console.log(`📊 朝活トラッキング開始...`);
   console.log(`🎯 監視チャンネルID: ${process.env.VOICE_CHANNEL_ID}`);
+
+  // ヘルスチェック: 1時間ごとにBotの状態をログ出力
+  setInterval(() => {
+    const now = dayjs().tz('Asia/Tokyo').format('YYYY-MM-DD HH:mm:ss');
+    console.log(`💚 ヘルスチェック: Botは正常に動作しています (${now})`);
+    console.log(`   現在のアクティブユーザー数: ${activeUsers.size}`);
+  }, 60 * 60 * 1000); // 1時間ごと
 });
 
 // ボイスチャンネルの状態変化を監視
@@ -38,6 +45,12 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
   const userId = newState.member.id;
   const username = newState.member.user.username;
   const displayName = newState.member.displayName;
+
+  // デバッグログ: すべてのvoiceStateUpdateイベントを記録
+  const now = dayjs().tz('Asia/Tokyo').format('YYYY-MM-DD HH:mm:ss');
+  console.log(`🔍 [${now}] voiceStateUpdate検知: ${displayName} (${userId})`);
+  console.log(`   oldChannel: ${oldState.channelId || 'なし'}, newChannel: ${newState.channelId || 'なし'}`);
+  console.log(`   targetChannel: ${targetChannelId}`);
 
   // 対象チャンネルに参加した場合
   if (newState.channelId === targetChannelId && oldState.channelId !== targetChannelId) {
@@ -64,7 +77,12 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
       console.log(`⏱️  滞在時間: ${durationMinutes}分`);
 
       // 欠席申請をチェック
-      const wasAbsent = await checkAbsence(userId, joinTime.format('YYYY-MM-DD'));
+      let wasAbsent = false;
+      try {
+        wasAbsent = await checkAbsence(userId, joinTime.format('YYYY-MM-DD'));
+      } catch (error) {
+        console.error(`⚠️ 欠席確認エラー:`, error.message);
+      }
 
       // Google Sheetsに記録
       try {
@@ -90,9 +108,12 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         console.log(`✅ Sheetsに記録完了`);
       } catch (error) {
         console.error(`❌ Sheets記録エラー:`, error.message);
+        console.error(`❌ データ: ${JSON.stringify({ userId, displayName, joinTime: joinTime.format('YYYY-MM-DD HH:mm:ss') })}`);
       }
 
       activeUsers.delete(userId);
+    } else {
+      console.warn(`⚠️ ${displayName} の参加記録が見つかりません（activeUsersにデータなし）`);
     }
   }
 });
@@ -142,11 +163,43 @@ client.on('interactionCreate', async (interaction) => {
 
 // エラーハンドリング
 client.on('error', (error) => {
-  console.error('Discord Client エラー:', error);
+  console.error('❌ Discord Client エラー:', error);
+});
+
+// 再接続処理
+client.on('shardDisconnect', (event, shardId) => {
+  console.warn(`⚠️ Discord切断 (Shard ${shardId}):`, event);
+  console.log(`🔄 自動再接続を試みます...`);
+});
+
+client.on('shardReconnecting', (shardId) => {
+  console.log(`🔄 Discord再接続中... (Shard ${shardId})`);
+});
+
+client.on('shardResume', (shardId, replayedEvents) => {
+  console.log(`✅ Discord再接続成功 (Shard ${shardId}, イベント再生: ${replayedEvents})`);
+});
+
+// Warnings
+client.on('warn', (warning) => {
+  console.warn(`⚠️ Discord警告:`, warning);
 });
 
 process.on('unhandledRejection', (error) => {
-  console.error('未処理のPromise拒否:', error);
+  console.error('❌ 未処理のPromise拒否:', error);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINTを受信しました。Botを終了します...');
+  client.destroy();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERMを受信しました。Botを終了します...');
+  client.destroy();
+  process.exit(0);
 });
 
 // Botにログイン

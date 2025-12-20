@@ -74,6 +74,34 @@ function getStatusFromJoinTime(joinTimeStr) {
   }
 }
 
+// リトライ機能付きでSheetsに書き込む
+async function appendToSheetWithRetry(sheets, spreadsheetId, range, values, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values },
+      });
+
+      console.log(`✅ Sheets書き込み成功 (試行${attempt}回目)`);
+      return response;
+    } catch (error) {
+      console.error(`❌ Sheets書き込み失敗 (試行${attempt}/${maxRetries}回目):`, error.message);
+
+      if (attempt === maxRetries) {
+        throw error;
+      }
+
+      // 指数バックオフで待機
+      const waitTime = Math.pow(2, attempt) * 1000;
+      console.log(`⏳ ${waitTime}ms待機してリトライします...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+  }
+}
+
 // ボイスチャンネル参加記録をSheetsに追加
 export async function recordVoiceActivity(data) {
   const {
@@ -89,8 +117,13 @@ export async function recordVoiceActivity(data) {
   } = data;
 
   try {
+    console.log(`📊 Sheets書き込み開始: ${displayName} (${userId})`);
     const sheets = await getSheetsClient();
     const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    if (!spreadsheetId) {
+      throw new Error('SPREADSHEET_IDが設定されていません');
+    }
 
     // 参加時刻から状態を判定
     const statusInfo = getStatusFromJoinTime(joinTime);
@@ -112,12 +145,8 @@ export async function recordVoiceActivity(data) {
       wasAbsent,         // M: 欠席申請していたか
     ]];
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'ActivityLog!A:M',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values },
-    });
+    // リトライ機能付きで書き込み
+    await appendToSheetWithRetry(sheets, spreadsheetId, 'ActivityLog!A:M', values);
 
     return {
       success: true,
@@ -125,8 +154,38 @@ export async function recordVoiceActivity(data) {
       wasAbsent,
     };
   } catch (error) {
-    console.error('Google Sheets記録エラー:', error);
+    console.error('❌ Google Sheets記録エラー (全リトライ失敗):', error.message);
+
+    // ローカルファイルにバックアップ
+    await saveToLocalBackup(data);
+
     throw error;
+  }
+}
+
+// 書き込み失敗時のローカルバックアップ
+async function saveToLocalBackup(data) {
+  try {
+    const backupFile = './logs/failed-logs.json';
+    let failedLogs = [];
+
+    // 既存のバックアップを読み込む
+    if (fs.existsSync(backupFile)) {
+      const content = fs.readFileSync(backupFile, 'utf8');
+      failedLogs = JSON.parse(content);
+    }
+
+    // 新しいログを追加
+    failedLogs.push({
+      ...data,
+      failedAt: new Date().toISOString(),
+    });
+
+    // バックアップファイルに保存
+    fs.writeFileSync(backupFile, JSON.stringify(failedLogs, null, 2));
+    console.log(`💾 ローカルバックアップに保存しました: ${backupFile}`);
+  } catch (error) {
+    console.error('❌ ローカルバックアップ保存エラー:', error.message);
   }
 }
 
